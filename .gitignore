@@ -15,3 +15,6 @@ my_test_db
 twitter-db
 .DS_Store
 localKOIIDB.db
+migrate.sh
+data.json
+dataList.json

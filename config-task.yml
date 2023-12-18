@@ -1,17 +1,17 @@
 # Name and metadata of your task
-task_name: "Adot Crawler v0.3.2"
-author: "Soma"
-description: "This task volunteers your Twitter account to crawl twitter to get results. The data are then stored in IPFS and will be used by the Adot to collect the results."
-repositoryUrl: "https://github.com/koii-network/adot-task-draft"
-imageUrl: "https://bafybeia7anj5fgnstqlqwglehxoeq7yviczei3u24gvas7tjqrmt2g7e2m.ipfs.w3s.link/soma.jpeg"
+task_name: 'Twitter Crawler v5.4'
+author: 'Soma'
+description: 'We invite you to volunteer your spare Twitter account to help us archive the #koii hashtag community or any keyword of your preference. This initiative is a not-for-profit endeavor, sponsored by the Koii Foundation. Before participating, please ensure that your volunteer Twitter account has passed the verification process.'
+repositoryUrl: 'https://github.com/koii-network/task-examples'
+imageUrl: 'imageUrl'
 
-# network value can be DEVELOPMENT , ARWEAVE or IPFS, Recommended IPFS as the cli automatically takes care of uploading the executable with the help of web3.js key
-task_executable_network: "IPFS"
+# network value can be DEVELOPMENT , ARWEAVE or IPFS, Recommended IPFS when deploying to testnet as the cli automatically takes care of uploading the executable with the help of web3.js key
+task_executable_network: 'IPFS'
 
-# Path to your executable webpack if the selected network is IPFS otherwise leave blank
-task_audit_program: "dist/main.js"
+# Path to your executable webpack if the selected network is IPFS and in case of DEVELOPMENT  name it as main
+task_audit_program: 'dist/main.js'
 
-# Total round time of your task : it must be given in slots and each slot is rougly equal to 4ms
+# Total round time of your task : it must be given in slots and each slot is roughly equal to 408ms
 round_time: 1500
 
 audit_window: 350
@@ -23,46 +23,44 @@ minimum_stake_amount: 1.9
 
 # total_bounty_amount cannot be grater than bounty_amount_per_round
 # total bounty is not accepted in case of update task
-total_bounty_amount: 20
+total_bounty_amount: 100
 
-bounty_amount_per_round: 1
+bounty_amount_per_round: 100
 
 #Number of times allowed to re-submit the distribution  list in case the distribution list is audited
 allowed_failed_distributions: 3
 
 #Space in MBs for the account size, that holds the task data
-space: 5
+space: 1
 
 # Note that the value field in RequirementTag is optional, so it is up to you to include it or not based on your use case.
 # To add more global variables and task variables, please refer the type,value,description format shown below
 
 requirementsTags:
   - type: TASK_VARIABLE
-    value: 'WEB3STORAGE_TOKEN'
-    description: 'To upload the executable to IPFS, you will need a web3 storage key. You can obtain one for yourself by following the tutorial at https://blog.koii.network/Introduce-web3-storage/. This tutorial will guide you on how to get the required web3 storage key for IPFS uploading.'
-  - type: TASK_VARIABLE
     value: 'TWITTER_USERNAME'
-    description: 'The username of your volunteer Twitter account.'
+    description: 'The username of your volunteer Twitter account. Please ensure your volunteer Twitter account has passed the Twitter verification process.'
   - type: TASK_VARIABLE
     value: 'TWITTER_PASSWORD'
     description: 'The password of your volunteer Twitter account.'
+  - type: TASK_VARIABLE
+    value: 'TWITTER_PHONE'
+    description: 'If verification is required, will use your phone number to login.'
+  - type: TASK_VARIABLE
+    value: "Spheron_Storage"
+    description: "Used to store the data. Spheron offers secure, decentralized data storage using blockchain technology for enhanced reliability and transparent data management. Do not have the key? Click the Get Key button to get one."
+    retrievalInfo: "https://faucet-api.koii.network/api/get-spheron-storage-key;GET;SYSTEM_WALLET_PUBLIC_KEY"
   - type: CPU
     value: '4-core'
   - type: RAM
     value: '5 GB'
   - type: STORAGE
-    value: 'Some'
-  - type: NETWORK
-    value: 'Fast'
-  - type: ARCHITECTURE
-    value: 'AMD'
-  - type: OS
-    value: 'OSX'
+    value: '5 GB'
 
-# OPTIONAL variables below 
+# OPTIONAL variables variables for creating task / REQUIRED variables for update task
 
 # OPTIONAL Only provide the taskId if you are updating the task otherwise leave blank
-task_id: "Fn8eggiNRgXcowrc4foCSSru6iunqyHnPwPhtyzZ43VG"
+task_id: '3LPjVj7qjma9b3P55rywsD9Xrwpa2CV7jqGMiEVptLkG'
 
 # Provide the description for changes made in new version of task
-migrationDescription: 'Now the task will not scrape comment and retweet data.'
+migrationDescription: 'Release v5.4 of the Twitter Crawler task. This version use Spheron to store the data fetched from Twitter. Stable the Spheron upload process. The task is now more stable'

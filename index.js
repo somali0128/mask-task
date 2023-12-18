@@ -4,9 +4,6 @@ const {
   namespaceWrapper,
   taskNodeAdministered,
 } = require('./namespaceWrapper');
-const Data = require('./model/data');
-const db = new Data('db', []);
-db.initializeData();
 
 
 /**
@@ -28,7 +25,7 @@ async function setup() {
       coreLogic.auditTask(m.roundNumber);
     } else if (m.functionCall == 'executeTask') {
       console.log('executeTask called');
-      coreLogic.task();
+      coreLogic.task(m.roundNumber);
     } else if (m.functionCall == 'generateAndSubmitDistributionList') {
       console.log('generateAndSubmitDistributionList called');
       coreLogic.submitDistributionList(m.roundNumber);
@@ -58,14 +55,4 @@ if (app) {
     res.status(200).json({ taskState: state });
   });
   app.use('/api/', require('./routes') );
-
-  app.get('/query/:round', (req, res) => {
-    const round = req.params.round;  
-
-    db.getSearchTerm(round).then((result) => {
-      res.status(200).json(result);
-    }).catch((err) => {
-      res.status(500).json(err);
-    });
-  });
 }

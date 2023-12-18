@@ -1,9 +1,19 @@
-const Data = require("../model/data");
-
 // Tests for the Data class
-const datadb = new Data("test", []);
-const item = {"id":"https://twitter.com/NFTindonesia_/status/1686549268784611329?s=20","timestamp":1692037658873,"round":4,"cid":"cid"}
-const id = "https://twitter.com/TzApac/status/1687336801760059393"
+const datadb = require('../helpers/db');
+
+
+
+
+const Item = require('../model/item');
+
+const testData = [
+  new Item({ id: 1, name: 'Item 1', description: 'First item' }),
+  new Item({ id: 2, name: 'Item 2', description: 'Second item' }),
+  new Item({ id: 3, name: 'Item 3', description: 'Third item' }),
+  new Item({ id: 4, name: 'Item 4', description: 'Fourth item' }),
+  new Item({ id: 5, name: 'Item 5', description: 'Fifth item' }),
+];
+
 async function test() {
   await datadb.initializeData();
 
@@ -18,7 +28,7 @@ async function test() {
 
   // Test creating an item
   // datadb
-  //   .create(item)
+  //   .createItems(testData)
   //   .then(() => {
   //     console.log('Create item test passed');
   //   })
@@ -27,11 +37,11 @@ async function test() {
   //   });
 
   // TEST get one item
-  datadb
-    .getItem(item)
-    .then(item => {
-      console.log('Get item test passed', item);
-    })
+  // datadb
+  //   .getItem('3')
+  //   .then(item => {
+  //     console.log('Get item test passed', item);
+  //   })
 
     // Test getting a list of items
   // let testlist = await datadb.getList();

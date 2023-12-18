@@ -1,4 +1,4 @@
-# Adot Task
+# Twitter Crawler
 
 **Not for illegal use**
 
@@ -26,14 +26,14 @@ This is an implementation of the default data-gatherer class of Koii tasks.
 There are four main components, detailed in the adapter file: `adapters/twitter/twitter.js`
 1. Negotiate Session
 2. Fetch a list
-3. Fetch an item
-4. Fetch a list from an item
+3. crawl an item
+4. Store the item
 
-The repo also contains a host of test files, most importantly `test/test-one-round.js` which details the full flow of one [gradual consensus](https://docs.koii.network/develop/koii-task-101/what-are-tasks/gradual-consensus) round. 
+The repo also contains a host of test files, most importantly `test/test-one-round.js` which details the full flow of one [gradual consensus](https://docs.koii.network/concepts/gradual-consensus/runtime-flow) round. 
 
 Run the test with 
 ```
-yarn or npm install
+yarn install or npm install
 yarn test or npm run test
 ```
 
@@ -43,7 +43,7 @@ To modify the crawler query, or change how it uses the local database, open `twi
 The `query` object manages the key parts of the crawler.
 
 ```javascript
-let searchTerm = "#web3";
+let searchTerm = "#koii";
 let query = {
     limit: 100, // total number of records to return
     searchTerm: searchTerm, // the keyword to look for
@@ -56,16 +56,14 @@ let query = {
 ```
 
 ## Modifying the Task
-Check `config-task.yaml` for the deployment config. Check [here](https://docs.koii.network/develop/command-line-tool/create-task-cli#using-config-yml) for more information on the config file.
+Check `task-config.yaml` for the deployment config. 
 
 ## Deploying to Koii
-Use the `create-task-cli` to build and deploy your task. Check [here](https://docs.koii.network/develop/command-line-tool/create-task-cli) for more information on the cli.
+Use the `create-task-cli` to build and deploy your task. 
 
-```bash
- #uploads your task executable to IPFS and starts it on Koii Node
-npx @_koii/create-task-cli@latest
+```
+yarn webpack #builds your task executable
+npx @_koii/create-task-cli@latest #uploads your task executable to IPFS and starts it on Koii
 ```
 
-## Running on Koii Node
-
-After deploying your task, you can run it on the Koii Node with your task ID. Check [here](https://docs.koii.network/run-a-node/task-nodes/how-to-run-a-koii-node) for more information about the how to install and run the Koii Node.
+For a longer demo and more information please see https://blog.koii.network/How-to-deploy-a-koii-task-in-less-than-5mins/
