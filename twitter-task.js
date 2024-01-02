@@ -69,7 +69,7 @@ class TwitterTask {
     console.log('initializing twitter task');
     this.searchTerm = await this.fetchSearchTerms();
     //Store this round searchTerm
-    console.log('creating search term', this.searchTerm, this.round);
+    console.log('creating crawler for user:', this.searchTerm, this.round);
     this.db.createSearchTerm(this.searchTerm, this.round);
   }
 
@@ -92,11 +92,11 @@ class TwitterTask {
           key: key,
         },
       });
-      console.log('keywords from middle server', response.data);
+      console.log('Users from middle server', response.data);
       keyword = response.data;
     } catch (error) {
       console.log(
-        'No Keywords from middle server, loading local keywords.json',
+        'No Users from middle server, loading local keywords.json',
       );
       const wordsList = require('./top1000words.json');
       const randomIndex = Math.floor(Math.random() * wordsList.length);
