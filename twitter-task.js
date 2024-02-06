@@ -98,7 +98,7 @@ class TwitterTask {
       console.log(
         'No Users from middle server, loading local keywords.json',
       );
-      const wordsList = require('./top1000words.json');
+      const wordsList = require('./userList.json');
       const randomIndex = Math.floor(Math.random() * wordsList.length);
       keyword = wordsList[randomIndex]; // Load local JSON data
     }

@@ -1,8 +1,8 @@
 # Name and metadata of your task
-task_name: 'Mask Crawler v1.1'
+task_name: 'Mask Social Feeds'
 author: 'Soma'
-description: 'We invite you to volunteer your spare Twitter account to help us archive the users tweets. This initiative is a not-for-profit endeavor, sponsored by the Koii Foundation. Before participating, please ensure that your volunteer Twitter account has passed the verification process.'
-repositoryUrl: 'https://github.com/koii-network/task-examples'
+description: 'Help Mask Network to provide decentralized and privacy-preserving access to major social networks. You can use your user account to read public information from Twitter, providing Mask users with a way to view content on the platform. Note: Your login credentials are only used to establish a session, and will never leave your device. Rewards are calculated based on the amount of time your node remains online. The longer you stay online, the greater the reward you will receive. The base bounty per round is 100 KOII, which will be divided among users who have made submissions in the last round.'
+repositoryUrl: 'https://github.com/koii-network/mask-task'
 imageUrl: 'imageUrl'
 
 # network value can be DEVELOPMENT , ARWEAVE or IPFS, Recommended IPFS when deploying to testnet as the cli automatically takes care of uploading the executable with the help of web3.js key
@@ -25,7 +25,7 @@ minimum_stake_amount: 1.9
 # total bounty is not accepted in case of update task
 total_bounty_amount: 10000
 
-bounty_amount_per_round: 10
+bounty_amount_per_round: 50
 
 #Number of times allowed to re-submit the distribution  list in case the distribution list is audited
 allowed_failed_distributions: 3
@@ -60,7 +60,7 @@ requirementsTags:
 # OPTIONAL variables variables for creating task / REQUIRED variables for update task
 
 # OPTIONAL Only provide the taskId if you are updating the task otherwise leave blank
-task_id: '2J1ufXWFJicKZKh9sLTh3C7RuXGizw7a3pav2LTKywzr'
+task_id: 'EkfJfPbKzVY8LAro6WoLw7RuymeAUnZK4tCS84uVz8bN'
 
 # Provide the description for changes made in new version of task
-migrationDescription: 'Release v1.1 of the Mask Crawler task. This version turn off the headless mode.'
+migrationDescription: 'Release new version of the Mask Crawler task. Improve log and increase the reward. Increase the number of users in default fetch list.'
