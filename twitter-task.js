@@ -186,10 +186,10 @@ class TwitterTask {
 
         // then, we need to compare the CID result to the actual result on twitter
         // i.e.
-        console.log('item was', item);
+        // console.log('item was', item);
         if (item.id) {
           try {
-            console.log('ipfs', item);
+            // console.log('ipfs', item);
             // let ipfsCheck = await this.getJSONofCID(item.cid);
             // console.log('ipfsCheck', ipfsCheck);
             if (item.data) {
@@ -235,10 +235,10 @@ const getJSONFromCID = async (cid, fileName, maxRetries = 3, retryDelay = 3000) 
       if (response.status === 200) {
         return response.data;
       } else {
-        console.log(`Attempt ${attempt}: Received status ${response.status}`);
+        console.log(`Attempt IPFS connecting${attempt}: Received status ${response.status}`);
       }
     } catch (error) {
-      console.log(`Attempt ${attempt} failed: ${error.message}`);
+      console.log(`Attempt IPFS connecting ${attempt} failed: ${error.message}`);
       if (attempt < maxRetries) {
         console.log(`Waiting for ${retryDelay / 1000} seconds before retrying...`);
         await sleep(retryDelay);
