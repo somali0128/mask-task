@@ -275,10 +275,10 @@ class NamespaceWrapper {
     console.log('******/  IN VOTING /******');
     const taskAccountDataJSON = await this.getTaskState();
 
-    console.log(
-      'Fetching the submissions of N - 1 round',
-      taskAccountDataJSON.submissions[round],
-    );
+    // console.log(
+    //   'Fetching the submissions of N - 1 round',
+    //   taskAccountDataJSON.submissions[round],
+    // );
     const submissions = taskAccountDataJSON.submissions[round];
     if (submissions == null) {
       console.log('No submisssions found in N-1 round');
@@ -287,23 +287,33 @@ class NamespaceWrapper {
       const keys = Object.keys(submissions);
       const values = Object.values(submissions);
       const size = values.length;
-      // console.log('Submissions from last round: ', keys, values, size);
+
+      const numberOfChecks = Math.min(5, size);
+
+      let uniqueIndices = new Set();
+
+      // Populate uniqueIndices with unique random numbers
+      while (uniqueIndices.size < numberOfChecks) {
+        const randomIndex = Math.floor(Math.random() * size);
+        uniqueIndices.add(randomIndex);
+      }
+
       let isValid;
       const submitterAccountKeyPair = await this.getSubmitterAccount();
       const submitterPubkey = submitterAccountKeyPair.publicKey.toBase58();
-      for (let i = 0; i < size; i++) {
-        let candidatePublicKey = keys[i];
+      for (let index of uniqueIndices) {
+        let candidatePublicKey = keys[index];
         // console.log('FOR CANDIDATE KEY', candidatePublicKey);
-        let candidateKeyPairPublicKey = new PublicKey(keys[i]);
+        let candidateKeyPairPublicKey = new PublicKey(keys[index]);
         if (candidatePublicKey == submitterPubkey) {
           console.log('YOU CANNOT VOTE ON YOUR OWN SUBMISSIONS');
         } else {
           try {
-            // console.log(
-            //   'SUBMISSION VALUE TO CHECK',
-            //   values[i].submission_value,
-            // );
-            isValid = await validate(values[i].submission_value, round);
+            console.log(
+              'SUBMISSION VALUE TO CHECK',
+              values[index].submission_value,
+            );
+            isValid = await validate(values[index].submission_value, round);
             // console.log(`Voting ${isValid} to ${candidatePublicKey}`);
 
             if (isValid) {
