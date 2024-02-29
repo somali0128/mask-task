@@ -21,20 +21,27 @@ class CoreLogic {
   }
 
   /**
-   * @fetchSubmission
-   * @description This function is called by the Koi core to fetch the submission values
-   *              before the node makes it's submission to claim rewards at the end of each round
-   * @param {string} round
-   * @returns {string} cid
-   */
+     * @fetchSubmission
+     * @description This function is called by the Koi core to fetch the submission values
+     *              before the node makes it's submission to claim rewards at the end of each round
+     * @param {string} round
+     * @returns {string} cid
+     */
   async fetchSubmission(roundNumber) {
     console.log('fetchSubmission called');
-
-    const cid = await this.twitterTask.getRoundCID(roundNumber);
-
-    console.log('about to make submission with CID: ', cid);
-
-    return cid;
+    try {
+      const cid = await this.twitterTask.getRoundCID(roundNumber);
+      if (cid) {
+        console.log('about to make submission with CID: ', cid);
+        return cid;
+      }
+      else {
+        console.log('No submission call made as return cid is null');
+      }
+    } catch (error) {
+      console.error('No submission call made as return cid is null', error);
+      throw error;
+    }
   }
 
   /**
