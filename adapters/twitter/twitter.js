@@ -1,13 +1,15 @@
 // Import required modules
 const Adapter = require('../../model/adapter');
 const cheerio = require('cheerio');
-const { SpheronClient, ProtocolEnum } = require('@spheron/storage');
+const {KoiiStorageClient} = require('@_koii/storage-task-sdk');
 const axios = require('axios');
 const Data = require('../../model/data');
 const PCR = require('puppeteer-chromium-resolver');
 const { namespaceWrapper } = require('../../namespaceWrapper');
 const fs = require('fs');
-
+const path = require('path');
+const rimraf = require('rimraf');
+const bcrypt = require('bcryptjs');
 /**
  * Twitter
  * @class
@@ -74,15 +76,26 @@ class Twitter extends Adapter {
         console.log('Old browser closed');
       }
       const options = {};
+      const userDataDir = path.join(__dirname, 'puppeteer_cache_koii_mask_archive');
       const stats = await PCR(options);
       console.log(
         '*****************************************CALLED PURCHROMIUM RESOLVER*****************************************',
       );
       this.browser = await stats.puppeteer.launch({
+        userDataDir: userDataDir,
         // headless: false,
         userAgent:
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+          args: [
+            '--aggressive-cache-discard',
+            '--disable-cache',
+            '--disable-application-cache',
+            '--disable-offline-load-stale-cache',
+            '--disable-gpu-shader-disk-cache',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-gpu',
+          ],
         executablePath: stats.executablePath,
       });
       console.log('Step: Open new page');
@@ -92,7 +105,6 @@ class Twitter extends Adapter {
       );
       await this.page.setViewport({ width: 1920, height: 1080 });
       await this.twitterLogin();
-      this.w3sKey = await getAccessToken();
       return true;
     } catch (e) {
       console.log('Error negotiating session', e);
@@ -104,7 +116,7 @@ class Twitter extends Adapter {
    * twitterLogin
    * @returns {Promise<void>}
    * @description
-   * 1. Go to twitter.com
+   * 1. Go to x.com
    * 2. Go to login page
    * 3. Fill in username
    * 4. Fill in password
@@ -126,8 +138,8 @@ class Twitter extends Adapter {
       try {
         console.log(currentAttempt, this.maxRetry);
         console.log('Step: Go to login page');
-        await this.page.goto('https://twitter.com/i/flow/login', {
-          timeout: 60000,
+        await this.page.goto('https://x.com/i/flow/login', {
+          timeout: await this.randomDelay(60000),
           waitUntil: 'networkidle0',
         });
         let basePath = '';
@@ -143,7 +155,7 @@ class Twitter extends Adapter {
         fs.writeFileSync(`${basePath}/bodyHTML.html`, bodyHTML);
 
         await this.page.waitForSelector('input', {
-          timeout: 60000,
+          timeout: await this.randomDelay(60000),
         });
 
         // Select the div element by its aria-labelledby attribute
@@ -153,7 +165,7 @@ class Twitter extends Adapter {
         fs.writeFileSync(`${basePath}/usernameHTML.html`, usernameHTML);
 
         await this.page.waitForSelector('input[name="text"]', {
-          timeout: 60000,
+          timeout: await this.randomDelay(60000),
         });
 
         console.log('Step: Fill in username');
@@ -164,7 +176,7 @@ class Twitter extends Adapter {
 
         const twitter_verify = await this.page
           .waitForSelector('input[data-testid="ocfEnterTextTextInput"]', {
-            timeout: 5000,
+            timeout: await this.randomDelay(5000),
             visible: true,
           })
           .then(() => true)
@@ -179,20 +191,22 @@ class Twitter extends Adapter {
             this.credentials.phone,
           );
           await this.page.keyboard.press('Enter');
-
-          if (!(await this.isPasswordCorrect(this.page, verifyURL))) {
+          await this.page.waitForTimeout(await this.randomDelay(3000));
+          if (!(await this.checkLogin())) {
             console.log(
               'Phone number is incorrect or email verfication needed.',
             );
-            await this.page.waitForTimeout(8000);
+            await this.page.waitForTimeout(await this.randomDelay(8000));
             this.sessionValid = false;
             process.exit(1);
           } else if (await this.isEmailVerificationRequired(this.page)) {
             console.log('Email verification required.');
             this.sessionValid = false;
-            await this.page.waitForTimeout(1000000);
+            await this.page.waitForTimeout(await this.randomDelay(1000000));
             process.exit(1);
           }
+          // add delay
+          await new Promise(resolve => setTimeout(resolve, 3000)); 
         }
 
         const currentURL = await this.page.url();
@@ -214,20 +228,20 @@ class Twitter extends Adapter {
         console.log('Step: Click login button');
         await this.page.keyboard.press('Enter');
 
-        if (!(await this.isPasswordCorrect(this.page, currentURL))) {
+        if (!(await this.checkLogin())) {
           console.log('Password is incorrect or email verfication needed.');
-          await this.page.waitForTimeout(5000);
+          await this.page.waitForTimeout(await this.randomDelay(5000));
           this.sessionValid = false;
           process.exit(1);
         } else if (await this.isEmailVerificationRequired(this.page)) {
           console.log('Email verification required.');
           this.sessionValid = false;
-          await this.page.waitForTimeout(10000);
+          await this.page.waitForTimeout(await this.randomDelay(10000));
           process.exit(1);
         } else {
           console.log('Password is correct.');
           this.page.waitForNavigation({ waitUntil: 'load' });
-          await this.page.waitForTimeout(10000);
+          await this.page.waitForTimeout(await this.randomDelay(10000));
 
           this.sessionValid = true;
           this.lastSessionCheck = Date.now();
@@ -257,22 +271,35 @@ class Twitter extends Adapter {
       }
     }
   };
-
+  createNewPage = async () => {
+    //attemp 3 times to create new page
+    let currentAttempt = 0;
+    while (currentAttempt < 3) {
+      try {
+        const newPage = await this.browser.newPage();
+        return newPage;
+      } catch (e) {
+        console.log('Error creating new page', e);
+        currentAttempt++;
+      }
+    }
+    return null;
+  };
   tryLoginWithCookies = async () => {
     const cookies = await this.db.getCookie();
     // console.log('cookies', cookies);
     if (cookies !== null) {
       await this.page.setCookie(...cookies);
 
-      await this.page.goto('https://twitter.com/home');
+      await this.page.goto('https://x.com/home');
 
-      await this.page.waitForTimeout(5000);
+      await this.page.waitForTimeout(await this.randomDelay(5000));
 
       // Replace the selector with a Twitter-specific element that indicates a logged-in state
       // This is just an example; you'll need to determine the correct selector for your case
       const isLoggedIn =
         (await this.page.url()) !==
-        'https://twitter.com/i/flow/login?redirect_after_login=%2Fhome';
+        'https://x.com/i/flow/login?redirect_after_login=%2Fhome';
 
       if (isLoggedIn) {
         console.log('Logged in using existing cookies');
@@ -292,6 +319,27 @@ class Twitter extends Adapter {
     }
   };
 
+  checkLogin = async () => {  
+
+    const newPage = await this.browser.newPage(); // Create a new page
+    await newPage.goto('https://x.com/home');
+    await newPage.waitForTimeout(await this.randomDelay(5000));
+    // Replace the selector with a Twitter-specific element that indicates a logged-in state
+    const isLoggedIn =
+      (await newPage.url()) !==
+      'https://x.com/i/flow/login?redirect_after_login=%2Fhome';
+    if (isLoggedIn) {
+      console.log('Logged in using existing cookies');
+      console.log('Updating last session check');
+      this.sessionValid = true;
+    } else {
+      console.log('No valid cookies found, proceeding with manual login');
+      this.sessionValid = false;
+    }
+    return this.sessionValid;
+
+  };
+  
   saveCookiesToDB = async cookies => {
     try {
       const data = await this.db.getCookie();
@@ -307,19 +355,19 @@ class Twitter extends Adapter {
   };
 
 
-  isPasswordCorrect = async (page, currentURL) => {
-    await this.page.waitForTimeout(8000);
+  // isPasswordCorrect = async (page, currentURL) => {
+  //   await this.page.waitForTimeout(8000);
 
-    const newURL = await this.page.url();
-    if (newURL === currentURL) {
-      return false;
-    }
-    return true;
-  };
+  //   const newURL = await this.page.url();
+  //   if (newURL === currentURL) {
+  //     return false;
+  //   }
+  //   return true;
+  // };
 
   isEmailVerificationRequired = async page => {
     // Wait for some time to allow the page to load the required elements
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(await this.randomDelay(5000));
 
     // Check if the specific text is present on the page
     const textContent = await this.page.evaluate(
@@ -356,29 +404,28 @@ class Twitter extends Adapter {
         } catch (err) {
           console.log(err);
         }
-
-        const client = await makeStorageClient(this.w3sKey);
-        let spheronData = await client.upload(`${basePath}/${path}`, {
-          protocol: ProtocolEnum.IPFS,
-          name: 'dataList.json',
-          onUploadInitiated: uploadId => {
-            // console.log(`Upload with id ${uploadId} started...`);
-          },
-          onChunkUploaded: (uploadedSize, totalSize) => {
-            // console.log(`Uploaded ${uploadedSize} of ${totalSize} Bytes.`);
-          },
-        });
-
-        // console.log(`CID: ${cid}`);
-        proof_cid = spheronData.cid;
-        await this.proofs.create({
-          id: 'proof:' + round,
-          proof_round: round,
-          proof_cid: proof_cid,
-        });
-
-        console.log('returning proof cid for submission', proof_cid);
-        return proof_cid;
+        try{
+          const client = new KoiiStorageClient(undefined, undefined, false);
+          const userStaking = await namespaceWrapper.getSubmitterAccount();
+          console.log(`Uploading ${basePath}/${path}`);
+          const fileUploadResponse = await client.uploadFile(`${basePath}/${path}`,userStaking);
+          console.log(`Uploaded ${basePath}/${path}`);
+          const cid = fileUploadResponse.cid;
+          proof_cid = cid; 
+          await this.proofs.create({
+            id: 'proof:' + round,
+            proof_round: round,
+            proof_cid: proof_cid,
+          });
+          console.log('returning proof cid for submission', proof_cid);
+          return proof_cid;
+      }catch (err) {
+            if (err.message === 'Invalid Task ID') {
+              console.error('Error: Invalid Task ID');
+          } else {
+              console.error('An unexpected error occurred:', err);
+          }
+      }
       }
     } else {
       throw new Error('No proofs database provided');
@@ -410,7 +457,7 @@ class Twitter extends Adapter {
       const user_name = allText.split('@')[0];
       // console.log('user_name', user_name);
       const user_url =
-        'https://twitter.com' + $(el).find('a[role="link"]').attr('href');
+        'https://x.com' + $(el).find('a[role="link"]').attr('href');
       const user_img = $(el).find('img[draggable="true"]').attr('src');
 
       const tweet_text = $(el)
@@ -427,11 +474,12 @@ class Twitter extends Adapter {
         const fullURL = $(this).attr('href');
         const shortURL = $(this).text().replace(/\s/g, '');
 
-        // Ignore URLs containing "/search?q=" or "twitter.com"
+        // Ignore URLs containing "/search?q=" or "x.com"
         if (
           fullURL &&
           !fullURL.includes('/search?q=') &&
           !fullURL.includes('twitter.com') &&
+          !fullURL.includes('x.com') &&
           !fullURL.includes('/hashtag/')
         ) {
           outer_media_urls.push(fullURL);
@@ -448,6 +496,11 @@ class Twitter extends Adapter {
       const likeCount = tweet_record.eq(1).text();
       const shareCount = tweet_record.eq(2).text();
       const viewCount = tweet_record.eq(3).text();
+      const tweets_content = tweet_text.replace(/\n/g, '<br>');
+      const originData = tweets_content;
+      const saltRounds = 10;
+      const salt = bcrypt.genSaltSync(saltRounds);
+      const hash = bcrypt.hashSync(originData, salt);
       if (screen_name && tweet_text) {
         data = {
           user_name: user_name,
@@ -455,7 +508,7 @@ class Twitter extends Adapter {
           user_url: user_url,
           user_img: user_img,
           tweets_id: tweetId,
-          tweets_content: tweet_text.replace(/\n/g, '<br>'),
+          tweets_content: tweets_content,
           time_post: time,
           time_read: Date.now(),
           comment: commentCount,
@@ -465,6 +518,7 @@ class Twitter extends Adapter {
           outer_media_url: outer_media_urls,
           outer_media_short_url: outer_media_short_urls,
           keyword: this.searchTerm,
+          hash: hash,
         };
       }
       return data;
@@ -507,14 +561,15 @@ class Twitter extends Adapter {
     try {
       console.log('fetching list for ', url);
       // Go to the hashtag page
-      await this.page.waitForTimeout(5000);
+      await this.page.waitForTimeout(await this.randomDelay(5000));
       await this.page.setViewport({ width: 1024, height: 4000 });
       await this.page.goto(url);
 
       // Wait an additional 5 seconds until fully loaded before scraping
-      await this.page.waitForTimeout(5000);
-
+      await this.page.waitForTimeout(await this.randomDelay(5000));
+      let i = 0;
       while (true) {
+        i++;
         // Check if the error message is present on the page inside an article element
         const errorMessage = await this.page.evaluate(() => {
           const elements = document.querySelectorAll('div[dir="ltr"]');
@@ -529,14 +584,14 @@ class Twitter extends Adapter {
           return false;
         });
 
-        // Scrape the tweets
+        // archive the tweets
         const items = await this.page.evaluate(() => {
           const elements = document.querySelectorAll(
             'article[aria-labelledby]',
           );
           return Array.from(elements).map(element => element.outerHTML);
         });
-
+        console.log(items.length);
         for (const item of items) {
           await new Promise(resolve => setTimeout(resolve, 1000)); // Adds a 1-second delay
           try {
@@ -567,8 +622,17 @@ class Twitter extends Adapter {
         }
 
         try {
-          if (this.round !== (await namespaceWrapper.getRound())) {
-            console.log('round changed, closed old browser');
+          let dataLength = (await this.cids.getList({ round: round })).length;
+          console.log(
+            'Already archived',
+            dataLength,
+            'and',
+            i,
+            'times in round',
+            round,
+          );
+          if (dataLength > 120 || i > 4) {
+            console.log('reach maixmum data per round, closed old browser');
             this.browser.close();
             break;
           }
@@ -576,7 +640,7 @@ class Twitter extends Adapter {
           await this.scrollPage(this.page);
 
           // Optional: wait for a moment to allow new elements to load
-          await this.page.waitForTimeout(5000);
+          await this.page.waitForTimeout(await this.randomDelay(5000));
 
           // Refetch the elements after scrolling
           await this.page.evaluate(() => {
@@ -603,7 +667,7 @@ class Twitter extends Adapter {
     await page.evaluate(() => {
       window.scrollBy(0, window.innerHeight);
     });
-    await page.waitForTimeout(5000); // Adjust the timeout as necessary
+    await page.waitForTimeout(await this.randomDelay(5000)); // Adjust the timeout as necessary
   };
 
   /**
@@ -617,6 +681,162 @@ class Twitter extends Adapter {
   processLinks = async links => {
     links.forEach(link => {});
   };
+  compareHash = async (data, saltRounds) => {
+    const dataToCompare =
+      data.data.tweets_content; // + data.data.tweets_id;
+    console.log(dataToCompare);
+    const salt = bcrypt.genSaltSync(saltRounds);
+    const hash = bcrypt.hashSync(dataToCompare, salt);
+    console.log(hash);
+    const hashCompare = bcrypt.compareSync(dataToCompare, hash);
+    console.log(hashCompare);
+    const hashCompareWrong = bcrypt.compareSync(data.data.tweets_id, hash);
+    console.log(hashCompareWrong);
+};
+
+/**
+ * retrieveItem derived from fetchList 
+ * @param {*} url 
+ * @param {*} item 
+ * @returns 
+ */
+retrieveItem = async (verify_page, tweetid) => {
+  try {
+
+    let i = 0;
+    while (true) {
+      i++;
+      // Check if the error message is present on the page inside an article element
+      const errorMessage = await verify_page.evaluate(() => {
+        const elements = document.querySelectorAll('div[dir="ltr"]');
+        for (let element of elements) {
+         
+          if (
+            element.textContent === 'Something went wrong. Try reloading.'
+          ) {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      // Archive the tweets
+      const items = await verify_page.evaluate(() => {
+        
+        const elements = document.querySelectorAll(
+          'article[aria-labelledby]',
+        );
+        return Array.from(elements).map(element => element.outerHTML);
+      });
+      let temp = null;
+      // Reason why many tweets: The given link might contain a main tweet and its comments, and the input task id might be one of the comments task id
+      for (const item of items) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Adds a 1-second delay
+        try {
+          let data = await this.parseItem(item);
+          console.log(data);
+          console.log(data.tweets_id);
+          console.log(tweetid);
+          if (data.tweets_id == tweetid) {
+            return data;
+          }else{
+            console.log("tweets id diff, continue");
+          }
+          if (data.tweets_id == "1"){
+            temp = data;
+          }
+        } catch (e) {
+          console.log(e);
+          console.log(
+            'Filtering advertisement tweets; continuing to the next item.',
+          );
+        }
+      }
+      
+      return temp;
+    }
+  } catch (e) {
+    console.log('Last round fetching list stop', e);
+    return;
+  }
+};
+verify = async (tweetid, inputitem) => {
+  console.log(inputitem);
+  console.log("above is input item");
+  try {
+    const options = {};
+    const userAuditDir = path.join(__dirname, 'puppeteer_cache_mask_audit');
+    const stats = await PCR(options);
+    let auditBrowser = await stats.puppeteer.launch({
+      executablePath: stats.executablePath,
+      userDataDir: userAuditDir,
+      // headless: false,
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      args: [
+        '--aggressive-cache-discard',
+        '--disable-cache',
+        '--disable-application-cache',
+        '--disable-offline-load-stale-cache',
+        '--disable-gpu-shader-disk-cache',
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-gpu',
+      ],
+    });
+    const url = `https://twitter.com/any/status/${tweetid}`;
+    const verify_page = await auditBrowser.newPage();
+    await verify_page.goto(url, { timeout: 60000 });
+    await verify_page.waitForTimeout(await this.randomDelay(5000));
+    let confirmed_no_tweet = false;
+    await verify_page.evaluate(() => {
+      if (document.querySelector('[data-testid="error-detail"]')) {
+        console.log('Error detail found');
+        confirmed_no_tweet = true;
+      }
+    });
+
+    if (confirmed_no_tweet) {
+      return false; // Return false if error detail is found
+    }
+    console.log('retrieve item for ', url);
+    const result = await this.retrieveItem(verify_page, tweetid);
+    if (result){
+      if (result.tweets_content != inputitem.tweets_content) {
+        console.log("content not match", result.tweets_content, inputitem.tweets_content);
+        auditBrowser.close();
+        return false;
+      }
+      if (result.time_read - inputitem.time_read > 3600000 * 15) {
+        console.log("time read difference too big", result.time_read, inputitem.time_read);
+        auditBrowser.close();
+        return false;
+      }
+      const dataToCompare = result.tweets_content;
+      const hashCompare = bcrypt.compareSync(dataToCompare, inputitem.hash);
+      if(hashCompare==false){
+        console.log("hash not match", dataToCompare, inputitem.hash);
+        auditBrowser.close();
+        return false;
+      }
+      auditBrowser.close();
+      return true;
+    }
+    auditBrowser.close();
+    return false; 
+    
+  } catch (e) {
+    console.log('Error fetching single item', e);
+    auditBrowser.close();
+    return false; // Return false in case of an exception
+  }
+};
+
+randomDelay = async (delayTime) => {
+  const delay = Math.floor(Math.random() * (delayTime - 2000 + 1)) + (delayTime - 2000);
+  // console.log('Delaying for', delay, 'ms');
+  return delay;
+}
 
   /**
    * stop
@@ -633,53 +853,3 @@ class Twitter extends Adapter {
 }
 
 module.exports = Twitter;
-
-async function makeStorageClient() {
-  try {
-    let token = await getAccessToken();
-    return new SpheronClient({
-      token: token,
-    });
-  } catch (e) {
-    console.log('Error: Missing spheron token, trying again');
-  }
-}
-
-async function storeFiles(data, token) {
-  try {
-    let cid;
-    const client = await makeStorageClient(token);
-    let path = `data.json`;
-    let basePath = '';
-    try {
-      basePath = await namespaceWrapper.getBasePath();
-      fs.writeFileSync(`${basePath}/${path}`, JSON.stringify(data));
-    } catch (err) {
-      console.log(err);
-    }
-
-    try {
-      // console.log(`${basePath}/${path}`)
-      let spheronData = await client.upload(`${basePath}/${path}`, {
-        protocol: ProtocolEnum.IPFS,
-        name: 'data.json',
-        onUploadInitiated: uploadId => {
-          // console.log(`Upload with id ${uploadId} started...`);
-        },
-        onChunkUploaded: (uploadedSize, totalSize) => {
-          // console.log(`Uploaded ${uploadedSize} of ${totalSize} Bytes.`);
-        },
-      });
-      cid = spheronData.cid;
-    } catch (err) {
-      console.log('error uploading to IPFS, trying again', err);
-    }
-    return cid;
-  } catch (e) {
-    console.log('Error storing files, missing w3s token', e);
-  }
-}
-
-async function getAccessToken() {
-  return process.env.Spheron_Storage;
-}

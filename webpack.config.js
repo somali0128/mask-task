@@ -1,4 +1,12 @@
 module.exports={
+  module: {
+      rules: [
+          {
+              test: /\.html$/,
+              use: 'html-loader'
+          }
+      ]
+  },
     entry:"./index.js",
     target: 'node',
     // When uploading to arweave use the production mode

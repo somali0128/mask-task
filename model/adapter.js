@@ -117,8 +117,7 @@ class Adapter {
             for (let i = 0; i < search.length; i += batchsize) {
                 let item = await this.parseOne(search);
                 result.push(item);
-                // TODO sleep is undefined  
-                await sleep(delay);
+                await this.sleep(delay);
             }
             
         } else {
@@ -127,6 +126,9 @@ class Adapter {
 
     }
 
+    sleep = async (ms) => {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
     
 

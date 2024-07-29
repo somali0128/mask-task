@@ -1,10 +1,20 @@
 const Twitter = require('./adapters/twitter/twitter.js');
-const db = require('./helpers/db');
-const { Web3Storage } = require('web3.storage');
 const Data = require('./model/data');
+const {KoiiStorageClient} = require('@_koii/storage-task-sdk');
 const dotenv = require('dotenv');
 const { default: axios } = require('axios');
 const { namespaceWrapper } = require('./namespaceWrapper.js');
+const { CID } = require('multiformats/cid');
+
+async function isValidCID(cid) {
+  try {
+    CID.parse(cid);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 dotenv.config();
 
 /**
@@ -123,7 +133,6 @@ class TwitterTask {
       depth: 3,
       round: this.round,
       recursive: true,
-      round: this.round,
     };
 
     this.adapter.crawl(query); // let it ride
@@ -159,7 +168,7 @@ class TwitterTask {
    * @returns
    */
   async getJSONofCID(cid) {
-    return await getJSONFromCID(cid, 'data.json');
+    return await getJSONFromCID(cid, 'dataList.json');
   }
 
   /**
@@ -185,15 +194,18 @@ class TwitterTask {
         // i.e.
         // console.log('item was', item);
         if (item.id) {
-          console.log('ipfs check passed');
-          return true;
+          await new Promise(resolve => setTimeout(resolve, 30000)); 
+          const result = await this.adapter.verify(item.data.tweets_id, item.data);
+          console.log('result from verify', result);
+          return result;
         } else {
           console.log('invalid item id', item.id);
-          return true;
+          return false;
         }
       }
     } else {
-      console.log('no data from proof CID');
+      console.log('No data from proof CID. Probably all ipfs failed. ');
+      return true;
     }
       // if none of the random checks fail, return true
       return true;
@@ -212,35 +224,36 @@ module.exports = TwitterTask;
  * @param {*} cid
  * @returns promise<JSON>
  */
-const sleep = ms => {
-  return new Promise(resolve => setTimeout(resolve, ms));
-};
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const getJSONFromCID = async (
   cid,
   fileName,
-  maxRetries = 3,
-  retryDelay = 3000,
+  retries = 3
 ) => {
-  let url = `https://${cid}.ipfs.w3s.link/${fileName}`;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  const validateCID = await isValidCID(cid)
+  if (!validateCID) {
+    console.log(`Invalid CID: ${cid}`);
+    return null;
+  }
+
+  const client = new KoiiStorageClient(undefined, undefined, false);
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const response = await axios.get(url);
-      if (response.status === 200) {
-        return response.data;
-      } 
+      const blob = await client.getFile(cid, fileName);
+      const text = await blob.text(); // Convert Blob to text
+      const data = JSON.parse(text); // Parse text to JSON
+      return data;
     } catch (error) {
-      console.log(
-        `Attempt connecting IPFS ${attempt} failed: ${error.message}`,
-      );
-      if (attempt < maxRetries) {
-        console.log(
-          // `Waiting for ${retryDelay / 1000} seconds before retrying...`,
-        );
-        await sleep(retryDelay);
-      } else {
-        return false; // Rethrow the last error
+      console.log(`Attempt ${attempt}: Error fetching file from Koii IPFS: ${error.message}`);
+      if (attempt === retries) {
+        throw new Error(`Failed to fetch file after ${retries} attempts`);
       }
+      // Optionally, you can add a delay between retries
+      await new Promise(resolve => setTimeout(resolve, 3000)); // 3-second delay
     }
   }
+
+  return null; 
 };
